@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Modified by Paul Wagner, Fraunhofer IOSB, 2024
 
 add_subdirectory(AdvancedConfigurationExample)
 add_subdirectory(BasicConfigurationExample)
@@ -45,4 +47,5 @@ add_subdirectory(ZeroCopyExample)
 
 if(SECURITY)
     add_subdirectory(SecureHelloWorldExample)
+    add_subdirectory(SecureHelloWorldWithTPMExample)
 endif()
