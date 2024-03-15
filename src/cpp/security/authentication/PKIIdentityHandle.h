@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Paul Wagner, Fraunhofer IOSB, 2024
 
 /*!
  * @file PKIIdentityHandle.h
@@ -23,7 +25,9 @@
 #include <fastdds/rtps/common/Token.h>
 
 #include <openssl/x509.h>
+#include <tss2/tss2_tpm2_types.h>
 #include <string>
+#include <map>
 
 namespace eprosima {
 namespace fastrtps {
@@ -47,6 +51,10 @@ public:
         , cert_content_(nullptr)
         , kagree_alg_(DH_2048_256)
         , there_are_crls_(false)
+        , privacy_store_(nullptr)
+        , quoting_cert_(nullptr)
+        , quoting_cert_content_(nullptr)
+        , there_are_privacy_crls_(false)
     {
     }
 
@@ -71,6 +79,23 @@ public:
         {
             BUF_MEM_free(cert_content_);
         }
+
+        // Additional attestation properties
+        if (privacy_store_ != nullptr)
+        {
+            X509_STORE_free(privacy_store_);
+        }
+
+        if (quoting_cert_ != nullptr)
+        {
+            X509_free(cert_);
+        }
+
+        if (quoting_cert_content_ != nullptr)
+        {
+            BUF_MEM_free(quoting_cert_content_);
+        }
+        // End of additional attestation properties
     }
 
     static const char* const class_id_;
@@ -89,6 +114,23 @@ public:
     bool there_are_crls_;
     IdentityToken identity_token_;
     PermissionsCredentialToken permissions_credential_token_;
+
+    // Additional attestation properties
+    bool offer_attestation_;
+    bool accept_attestation_;
+    std::string tcti_options_;
+    X509_STORE* privacy_store_;
+    X509* quoting_cert_;
+    BUF_MEM* quoting_cert_content_;
+    std::string privacy_sn_;
+    std::string privacy_algo_;
+    std::string quoting_cert_sn_;
+    std::string quoting_cert_sn_rfc2253_;
+    std::string quoting_key_;
+    TPML_PCR_SELECTION pcr_selections_;
+    std::map<TPM2_ALG_ID, std::map<uint32_t, TPM2B_DIGEST> > pcr_map_;
+    bool there_are_privacy_crls_;
+    // End of additional attestation properties
 };
 
 class PKIDH;

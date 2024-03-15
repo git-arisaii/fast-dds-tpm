@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Paul Wagner, Fraunhofer IOSB, 2024
 
 /*!
  * @file PKIDH.cpp
@@ -54,6 +56,15 @@
 
 #include <cassert>
 #include <algorithm>
+#include <cstring>
+#include <sstream>
+#include <regex>
+#include <tss2/tss2_esys.h>
+#include <tss2/tss2_tctildr.h>
+#include <security/tpm/TpmHelper.h>
+#include <security/tpm/TpmPcrs.h>
+#include <security/tpm/TpmQuote.h>
+#include <security/tpm/TpmMu.h>
 
 #define S1(x) #x
 #define S2(x) S1(x)
@@ -991,6 +1002,283 @@ static bool generate_identity_token(
     return true;
 }
 
+// --------------------------------------------------
+// --- Attestation helpers --------------------------
+static bool parse_pcr_string(
+        std::string pcr_bank_string,
+        std::string pcr_selection_string,
+        TPML_PCR_SELECTION& pcr_selections,
+        SecurityException& exception)
+{
+    std::vector<TPM2_ALG_ID> hash_algs;
+    std::vector<uint32_t> pcrs;
+
+    std::stringstream pcr_bank_stream(pcr_bank_string);
+    std::string bank;
+    while (std::getline(pcr_bank_stream, bank, ','))
+    {
+        TPM2_ALG_ID hash_alg = getTpmHashAlgId(bank);
+        if (hash_alg != TPM2_ALG_NULL)
+        {
+            hash_algs.push_back(hash_alg);
+        }
+        else
+        {
+            exception = _SecurityException_("Failed to parse PCR banks: " + pcr_bank_string);
+            return false;
+        }
+    }
+
+    const std::regex regex_selection(R"(((\d+)-(\d+))|(\d+))");
+    try
+    {
+        std::string s = pcr_selection_string;
+        for (std::smatch sm; std::regex_search(s, sm, regex_selection);) {
+            if (sm[1].str().length() > 0)
+            {
+                for (int i = std::stoi(sm[2]); i <= std::stoi(sm[3]); ++i)
+                    pcrs.push_back((uint32_t) i);
+            }
+            else
+            {
+                pcrs.push_back(std::stoi(sm[0]));
+            }
+            s = sm.suffix();
+        }
+    }
+    catch (const std::exception&)
+    {
+        exception = _SecurityException_("Failed to parse PCR string: " + pcr_selection_string);
+        return false;
+    }
+
+    return buildPcrSelectionList(hash_algs, pcrs, pcr_selections, exception);
+}
+
+static bool generate_attestation_evidence(
+        std::string tcti_options,
+        std::string quoting_key,
+        const TPML_PCR_SELECTION& pcr_selections,
+        const unsigned char* qualifying_data,
+        const size_t qualifying_data_length,
+        TPM2B_ATTEST** quoted,
+        TPMT_SIGNATURE** signature,
+        std::vector<TPML_DIGEST>& pcr_digests,
+        SecurityException& exception)
+{
+    // Initialize tcti context
+    TSS2_RC rc = 0;
+    TSS2_TCTI_CONTEXT* tcti_ctx = nullptr;
+    rc = Tss2_TctiLdr_Initialize(tcti_options.c_str(), &tcti_ctx);
+    if (rc != TSS2_RC_SUCCESS)
+    {
+        exception = _SecurityException_("TPM Error! Tss2_TctiLdr_Initialize failed: " + std::to_string(rc));
+        return false;
+    }
+
+    // Initialize esys context
+    ESYS_CONTEXT* esys_ctx = nullptr;
+    rc = Esys_Initialize(&esys_ctx, tcti_ctx, nullptr);
+    if (rc != TSS2_RC_SUCCESS)
+    {
+        exception = _SecurityException_("TPM Error! Esys_Initialize failed: " + std::to_string(rc));
+        Tss2_TctiLdr_Finalize(&tcti_ctx);
+        return false;
+    }
+
+    // Load the quoting key
+    if (quoting_key.size() < 7 || (quoting_key.compare(0, 7, "object:") != 0 && quoting_key.compare(0, 7, "handle:") != 0))
+    {
+        exception = _SecurityException_("Unsupported URI format " + quoting_key);
+        Esys_Finalize(&esys_ctx);
+        Tss2_TctiLdr_Finalize(&tcti_ctx);
+        return false;
+    }
+    ESYS_TR quoting_key_tr;
+    if (!loadTpmKey(esys_ctx, quoting_key.substr(7), &quoting_key_tr, exception))
+    {
+        Esys_Finalize(&esys_ctx);
+        Tss2_TctiLdr_Finalize(&tcti_ctx);
+        return false;
+    }
+
+    // Hash the qualifying data
+    TPM2B_DATA qd;
+    if (!calculateTpmDigest(TPM2_ALG_SHA256, qualifying_data, qualifying_data_length, (TPM2B_DIGEST*) &qd, exception))
+    {
+        Esys_Finalize(&esys_ctx);
+        Tss2_TctiLdr_Finalize(&tcti_ctx);
+        return false;
+    }
+
+    // Generate the quote
+    if (!generateTpmQuote(esys_ctx, quoting_key_tr, pcr_selections, qd, quoted, signature, exception))
+    {
+        Esys_Finalize(&esys_ctx);
+        Tss2_TctiLdr_Finalize(&tcti_ctx);
+        return false;
+    }
+
+    // Read the PCRs
+    if (!readPcrs(esys_ctx, pcr_selections, pcr_digests, exception))
+    {
+        Esys_Finalize(&esys_ctx);
+        Tss2_TctiLdr_Finalize(&tcti_ctx);
+        return false;
+    }
+
+    Esys_Finalize(&esys_ctx);
+    Tss2_TctiLdr_Finalize(&tcti_ctx);
+    return true;
+}
+
+static bool verify_attestation_evidence(
+        X509* certificate,
+        const TPM2B_ATTEST& quoted,
+        const TPMT_SIGNATURE& quoted_signature,
+        const unsigned char* qualifying_data,
+        const size_t qualifying_data_length,
+        const TPML_PCR_SELECTION& pcr_selections,
+        const std::vector<TPML_DIGEST>& pcr_digests,
+        std::map<TPM2_ALG_ID, std::map<uint32_t, TPM2B_DIGEST> >& pcr_map,
+        SecurityException& exception)
+{
+    EVP_PKEY* verification_key = X509_get_pubkey(certificate);
+    if (verification_key == nullptr)
+    {
+        exception = _SecurityException_("Failed to get public key from quoting certificate");
+        return false;
+    }
+
+    TPM2_ALG_ID cp_hash_alg = quoted_signature.signature.any.hashAlg;
+    TPM2B_DIGEST cp_digest;
+    TPM2B_DATA qd;
+    if (decodePcrDigests(pcr_selections, pcr_digests, pcr_map, cp_hash_alg, cp_digest, exception))
+    {
+        if (calculateTpmDigest(TPM2_ALG_SHA256, qualifying_data, qualifying_data_length, (TPM2B_DIGEST*) &qd, exception))
+        {
+            if (verifyTpmQuote(verification_key, qd, quoted, quoted_signature, cp_digest, exception))
+            {
+                EVP_PKEY_free(verification_key);
+                return true;
+            }
+        }
+    }
+
+    EVP_PKEY_free(verification_key);
+    return false;
+}
+
+static bool marshal_attestation_evidence(
+        HandshakeMessageToken& handshake_message_out,
+        const TPM2B_ATTEST& quoted,
+        const TPMT_SIGNATURE& quoted_signature,
+        const TPML_PCR_SELECTION& pcr_selections,
+        const std::vector<TPML_DIGEST>& pcr_digests,
+        SecurityException& exception)
+{
+    BinaryProperty bproperty;
+
+    // quoted
+    bproperty.name("quoted");
+    bproperty.propagate(true);
+    if (!marshalTpm2bAttest(&quoted, bproperty.value(), exception))
+    {
+        return false;
+    }
+    handshake_message_out.binary_properties().push_back(std::move(bproperty));
+
+    // quoted_signature
+    bproperty.name("quoted_signature");
+    bproperty.propagate(true);
+    if (!marshalTpmtSignature(&quoted_signature, bproperty.value(), exception))
+    {
+        return false;
+    }
+    handshake_message_out.binary_properties().push_back(std::move(bproperty));
+
+    // pcr_selections
+    bproperty.name("pcr_selections");
+    bproperty.propagate(true);
+    if (!marshalTpmlPcrSelection(&pcr_selections, bproperty.value(), exception))
+    {
+        return false;
+    }
+    handshake_message_out.binary_properties().push_back(std::move(bproperty));
+
+    // pcr_digests
+    bproperty.name("pcr_digests");
+    bproperty.propagate(true);
+    if (!marshalTpmlDigestVec(pcr_digests, bproperty.value(), exception))
+    {
+        return false;
+    }
+    handshake_message_out.binary_properties().push_back(std::move(bproperty));
+
+    return true;
+}
+
+static bool unmarshal_attestation_evidence(
+        HandshakeMessageToken& handshake_message_in,
+        TPM2B_ATTEST& quoted,
+        TPMT_SIGNATURE& quoted_signature,
+        TPML_PCR_SELECTION& pcr_selections,
+        std::vector<TPML_DIGEST>& pcr_digests,
+        SecurityException& exception)
+{
+    // quoted
+    const std::vector<uint8_t>* quoted_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "quoted");
+    if (quoted_vec == nullptr)
+    {
+        exception = _SecurityException_("Cannot find property quoted");
+        return false;
+    }
+    if (!unmarshalTpm2bAttest(*quoted_vec, &quoted, exception))
+    {
+        return false;
+    }
+
+    // quoted_signature
+    const std::vector<uint8_t>* quoted_signature_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "quoted_signature");
+    if (quoted_signature_vec == nullptr)
+    {
+        exception = _SecurityException_("Cannot find property quoted_signature");
+        return false;
+    }
+    if (!unmarshalTpmtSignature(*quoted_signature_vec, &quoted_signature, exception))
+    {
+        return false;
+    } 
+
+    // pcr_selections
+    const std::vector<uint8_t>* pcr_selections_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "pcr_selections");
+    if (pcr_selections_vec == nullptr)
+    {
+        exception = _SecurityException_("Cannot find property pcr_selections");
+        return false;
+    }
+    if (!unmarshalTpmlPcrSelection(*pcr_selections_vec, &pcr_selections, exception))
+    {
+        return false;
+    }
+
+    // pcr_digests
+    const std::vector<uint8_t>* pcr_digests_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "pcr_digests");
+    if (pcr_digests_vec == nullptr)
+    {
+        exception = _SecurityException_("Cannot find property pcr_digests");
+        return false;
+    }
+    if (!unmarshalTpmlDigestVec(*pcr_digests_vec, pcr_digests, exception))
+    {
+        return false;
+    }
+
+    return true;
+}
+// --- End of attestation helpers -------------------
+// --------------------------------------------------
+
 ValidationResult_t PKIDH::validate_local_identity(
         IdentityHandle** local_identity_handle,
         GUID_t& adjusted_participant_key,
@@ -1047,6 +1335,79 @@ ValidationResult_t PKIDH::validate_local_identity(
     {
         password = &empty_password;
     }
+
+    // --------------------------------------------------
+    // --- Additional attestation properties ------------
+    bool offer_attestation = false;
+    std::string* tcti_options = nullptr;
+    std::string empty_tcti_options;
+    std::string* privacy_ca = nullptr;
+    std::string* quoting_key = nullptr;
+    std::string* quoting_cert = nullptr;
+    std::string* pcr_banks = nullptr;
+    std::string* pcr_selection = nullptr;
+
+    PropertyPolicy tpm2_properties = PropertyPolicyHelper::get_properties_with_prefix(participant_attr.properties,
+                  "dds.sec.auth.builtin.PKI-DH.tpm2.");
+
+    if (PropertyPolicyHelper::length(tpm2_properties) > 0)
+    {
+      // The properties privacy_ca and tcti_options are optional
+      privacy_ca = PropertyPolicyHelper::find_property(tpm2_properties, "privacy_ca");
+      tcti_options = PropertyPolicyHelper::find_property(tpm2_properties, "tcti_options");
+      if (tcti_options == nullptr)
+      {
+          tcti_options = &empty_tcti_options;
+      }
+
+      // The other properties must be present either fully or not at all
+      quoting_key = PropertyPolicyHelper::find_property(tpm2_properties, "quoting_key");
+      quoting_cert = PropertyPolicyHelper::find_property(tpm2_properties, "quoting_cert");
+      pcr_banks = PropertyPolicyHelper::find_property(tpm2_properties, "pcr_banks");
+      pcr_selection = PropertyPolicyHelper::find_property(tpm2_properties, "pcr_selection");
+
+      if (quoting_key != nullptr || quoting_cert != nullptr
+            || pcr_banks != nullptr || pcr_selection != nullptr)
+      {
+          if (quoting_key == nullptr)
+          {
+              exception = _SecurityException_("Not found dds.sec.auth.builtin.PKI-DH.tpm2.quoting_key property");
+              EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+              return ValidationResult_t::VALIDATION_FAILED;
+          }
+
+          if (quoting_cert == nullptr)
+          {
+              exception = _SecurityException_("Not found dds.sec.auth.builtin.PKI-DH.tpm2.quoting_cert property");
+              EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+              return ValidationResult_t::VALIDATION_FAILED;
+          }
+
+          if (pcr_banks == nullptr)
+          {
+              exception = _SecurityException_("Not found dds.sec.auth.builtin.PKI-DH.tpm2.pcr_banks property");
+              EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+              return ValidationResult_t::VALIDATION_FAILED;
+          }
+
+          if (pcr_selection == nullptr)
+          {
+              exception = _SecurityException_("Not found dds.sec.auth.builtin.PKI-DH.tpm2.pcr_selection property");
+              EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+              return ValidationResult_t::VALIDATION_FAILED;
+          }
+
+          offer_attestation = true;
+      }
+    }
+
+    if (privacy_ca == nullptr)
+    {
+        // Falling back to identity_ca lets even completely unconfigured participants verify quotes
+        privacy_ca = identity_ca;
+    }
+    // --- End of additional attestation properties -----
+    // --------------------------------------------------
 
     PKIIdentityHandle* ih = &PKIIdentityHandle::narrow(*get_identity_handle(exception));
 
@@ -1114,9 +1475,61 @@ ValidationResult_t PKIDH::validate_local_identity(
                                 if (generate_identity_token(*ih))
                                 {
                                     (*ih)->participant_key_ = adjusted_participant_key;
-                                    *local_identity_handle = ih;
 
-                                    return ValidationResult_t::VALIDATION_OK;
+                                    // --------------------------------------------------
+                                    // --- Additional attestation properties ------------
+                                    (*ih)->accept_attestation_ = true;
+                                    (*ih)->offer_attestation_ = offer_attestation;
+
+                                    (*ih)->privacy_store_ = load_identity_ca(*privacy_ca, (*ih)->there_are_privacy_crls_,
+                                                                (*ih)->privacy_sn_, (*ih)->privacy_algo_, exception);
+                                    if ((*ih)->privacy_store_ != nullptr)
+                                    {
+                                        ERR_clear_error();
+
+                                        if ((*ih)->offer_attestation_)
+                                        {
+                                            (*ih)->quoting_cert_ = load_certificate(*quoting_cert, exception);
+
+                                            if ((*ih)->quoting_cert_ != nullptr)
+                                            {
+                                                // Get quoting key subject name.
+                                                X509_NAME* quoting_cert_sn = X509_get_subject_name((*ih)->quoting_cert_);
+                                                assert(quoting_cert_sn != nullptr);
+                                                char* quoting_cert_sn_str = X509_NAME_oneline(quoting_cert_sn, 0, 0);
+                                                assert(quoting_cert_sn_str != nullptr);
+                                                (*ih)->quoting_cert_sn_ = quoting_cert_sn_str;
+                                                OPENSSL_free(quoting_cert_sn_str);
+                                                BIO* quoting_cert_sn_rfc2253_str = BIO_new(BIO_s_mem());
+                                                X509_NAME_print_ex(quoting_cert_sn_rfc2253_str, quoting_cert_sn, 0, XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB);
+                                                const int bufsize = 1024;
+                                                char buffer[bufsize];
+                                                int length = BIO_read(quoting_cert_sn_rfc2253_str, buffer, bufsize);
+                                                BIO_free(quoting_cert_sn_rfc2253_str);
+                                                (*ih)->quoting_cert_sn_rfc2253_.assign(buffer, length);
+
+                                                if (verify_certificate((*ih)->privacy_store_, (*ih)->quoting_cert_, (*ih)->there_are_privacy_crls_))
+                                                {
+                                                    if (store_certificate_in_buffer((*ih)->quoting_cert_, &(*ih)->quoting_cert_content_, exception))
+                                                    {
+                                                        if (parse_pcr_string(*pcr_banks, *pcr_selection, (*ih)->pcr_selections_, exception))
+                                                        {
+                                                            (*ih)->tcti_options_ = *tcti_options;
+                                                            (*ih)->quoting_key_ = *quoting_key;
+
+                                                            *local_identity_handle = ih;
+                                                            return ValidationResult_t::VALIDATION_OK;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            *local_identity_handle = ih;
+                                            return ValidationResult_t::VALIDATION_OK;
+                                        }
+                                    }
+                                    // --- End of additional attestation properties -----
+                                    // --------------------------------------------------
                                 }
                             }
                         }
@@ -1306,6 +1719,35 @@ ValidationResult_t PKIDH::begin_handshake_request(
             if (generate_challenge(bproperty.value(), exception))
             {
                 (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+
+                // --------------------------------------------------
+                // --- Additional attestation properties ------------
+                if (lih->accept_attestation_)
+                {
+                    // accept_attestation
+                    bproperty.name("accept_attestation");
+                    bproperty.value().clear();
+                    bproperty.propagate(true);
+                    (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+                }
+
+                if (lih->offer_attestation_)
+                {
+                    // offer_attestation
+                    bproperty.name("offer_attestation");
+                    bproperty.value().clear();
+                    bproperty.propagate(true);
+                    (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+
+                    // quoting_cert
+                    bproperty.name("quoting_cert");
+                    bproperty.value().assign(lih->quoting_cert_content_->data,
+                        lih->quoting_cert_content_->data + lih->quoting_cert_content_->length);
+                    bproperty.propagate(true);
+                    (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+                }
+                // --- End of additional attestation properties -----
+                // --------------------------------------------------
 
                 (*handshake_handle_aux)->local_identity_handle_ = &lih;
                 (*handshake_handle_aux)->remote_identity_handle_ = &rih;
@@ -1574,6 +2016,72 @@ ValidationResult_t PKIDH::begin_handshake_reply(
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
+    // --------------------------------------------------
+    // --- Additional attestation properties ------------
+
+    // Check accept_attestation
+    std::vector<uint8_t>* accept_attestation_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "accept_attestation");
+    rih->accept_attestation_ = (accept_attestation_vec != nullptr);
+
+    // Check offer_attestation
+    std::vector<uint8_t>* offer_attestation_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "offer_attestation");
+    rih->offer_attestation_ = (offer_attestation_vec != nullptr);
+
+    if (rih->offer_attestation_ && lih->accept_attestation_)
+    {
+        // Check quoting_cert
+        const std::vector<uint8_t>* quoting_cert = DataHolderHelper::find_binary_property_value(handshake_message_in, "quoting_cert");
+
+        if (quoting_cert == nullptr)
+        {
+            WARNING_SECURITY_LOGGING("PKIDH", "Cannot find property quoting_cert");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+
+        //! Release the memory in case of having an old certificate
+        if (rih->quoting_cert_ != nullptr)
+        {
+            X509_free(rih->quoting_cert_);
+            rih->quoting_cert_ = nullptr;
+        }
+
+        rih->quoting_cert_ = load_certificate(*quoting_cert);
+
+        if (rih->quoting_cert_ == nullptr)
+        {
+            WARNING_SECURITY_LOGGING("PKIDH", "Cannot load quoting certificate");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+
+        X509_NAME* quoting_cert_sn = X509_get_subject_name(rih->quoting_cert_);
+        assert(quoting_cert_sn != nullptr);
+        char* quoting_cert_sn_str = X509_NAME_oneline(quoting_cert_sn, 0, 0);
+        assert(quoting_cert_sn_str != nullptr);
+        if (!rih->quoting_cert_sn_.empty() && rih->quoting_cert_sn_.compare(quoting_cert_sn_str) != 0)
+        {
+            OPENSSL_free(quoting_cert_sn_str);
+            WARNING_SECURITY_LOGGING("PKIDH", "Subject name in quoting certificate invalid");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+        rih->quoting_cert_sn_.assign(quoting_cert_sn_str);
+        OPENSSL_free(quoting_cert_sn_str);
+        BIO* quoting_cert_sn_rfc2253_str = BIO_new(BIO_s_mem());
+        X509_NAME_print_ex(quoting_cert_sn_rfc2253_str, quoting_cert_sn, 0, XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB);
+        const int bufsize = 1024;
+        char buffer[bufsize];
+        int str_length = BIO_read(quoting_cert_sn_rfc2253_str, buffer, bufsize);
+        BIO_free(quoting_cert_sn_rfc2253_str);
+        rih->quoting_cert_sn_rfc2253_.assign(buffer, str_length);
+
+        if (!verify_certificate(lih->privacy_store_, rih->quoting_cert_, lih->there_are_privacy_crls_))
+        {
+            WARNING_SECURITY_LOGGING("PKIDH", "Error verifying quoting certificate");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+    }
+    // --- End of additional attestation properties -----
+    // --------------------------------------------------
+
     // Generate handshake reply message token.
     PKIHandshakeHandle* handshake_handle_aux = new PKIHandshakeHandle();
     (*handshake_handle_aux)->kagree_alg_ = rih->kagree_alg_;
@@ -1727,6 +2235,66 @@ ValidationResult_t PKIDH::begin_handshake_reply(
                 if (sign_sha256(lih->pkey_, cdrmessage2.buffer, cdrmessage2.length, bproperty.value(), exception))
                 {
                     (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+
+                    // --------------------------------------------------
+                    // --- Additional attestation properties ------------
+                    if (lih->accept_attestation_)
+                    {
+                        // accept_attestation
+                        bproperty.name("accept_attestation");
+                        bproperty.value().clear();
+                        bproperty.propagate(true);
+                        (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+                    }
+
+                    if (lih->offer_attestation_)
+                    {
+                        // offer_attestation
+                        bproperty.name("offer_attestation");
+                        bproperty.value().clear();
+                        bproperty.propagate(true);
+                        (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+
+                        // quoting_cert
+                        bproperty.name("quoting_cert");
+                        bproperty.value().assign(lih->quoting_cert_content_->data,
+                            lih->quoting_cert_content_->data + lih->quoting_cert_content_->length);
+                        bproperty.propagate(true);
+                        (*handshake_handle_aux)->handshake_message_.binary_properties().push_back(std::move(bproperty));
+                    }
+
+                    if (lih->offer_attestation_ && rih->accept_attestation_)
+                    {
+                        // Generate attestation evidence
+                        TPM2B_ATTEST* quoted = nullptr;
+                        TPMT_SIGNATURE* quoted_signature = nullptr;
+                        std::vector<TPML_DIGEST> pcr_digests;
+                        if (!generate_attestation_evidence(
+                              lih->tcti_options_, lih->quoting_key_, lih->pcr_selections_,
+                              cdrmessage2.buffer, cdrmessage2.length,
+                              &quoted, &quoted_signature, pcr_digests, exception))
+                        {
+                            EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+                            if (quoted) free(quoted);
+                            if (quoted_signature) free(quoted_signature);
+                            delete handshake_handle_aux;
+                            return ValidationResult_t::VALIDATION_FAILED;
+                        }
+
+                        if (!marshal_attestation_evidence((*handshake_handle_aux)->handshake_message_,
+                              *quoted, *quoted_signature, lih->pcr_selections_, pcr_digests, exception))
+                        {
+                            EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+                            free(quoted);
+                            free(quoted_signature);
+                            delete handshake_handle_aux;
+                            return ValidationResult_t::VALIDATION_FAILED;
+                        }
+                        free(quoted);
+                        free(quoted_signature);
+                    }
+                    // --- End of additional attestation properties -----
+                    // --------------------------------------------------
 
                     (*handshake_handle_aux)->local_identity_handle_ = &lih;
                     (*handshake_handle_aux)->remote_identity_handle_ = &rih;
@@ -2120,6 +2688,92 @@ ValidationResult_t PKIDH::process_handshake_request(
         return ValidationResult_t::VALIDATION_FAILED;
     }
 
+    // --------------------------------------------------
+    // --- Additional attestation properties ------------
+
+    // Check accept_attestation
+    std::vector<uint8_t>* accept_attestation_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "accept_attestation");
+    rih->accept_attestation_ = (accept_attestation_vec != nullptr);
+
+    // Check offer_attestation
+    std::vector<uint8_t>* offer_attestation_vec = DataHolderHelper::find_binary_property_value(handshake_message_in, "offer_attestation");
+    rih->offer_attestation_ = (offer_attestation_vec != nullptr);
+
+    if (rih->offer_attestation_ && lih->accept_attestation_)
+    {
+        // Check quoting_cert
+        const std::vector<uint8_t>* quoting_cert = DataHolderHelper::find_binary_property_value(handshake_message_in, "quoting_cert");
+
+        if (quoting_cert == nullptr)
+        {
+            WARNING_SECURITY_LOGGING("PKIDH", "Cannot find property quoting_cert");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+
+        //! Release the memory in case of having an old certificate
+        if (rih->quoting_cert_ != nullptr)
+        {
+            X509_free(rih->quoting_cert_);
+            rih->quoting_cert_ = nullptr;
+        }
+
+        rih->quoting_cert_ = load_certificate(*quoting_cert);
+
+        if (rih->quoting_cert_ == nullptr)
+        {
+            WARNING_SECURITY_LOGGING("PKIDH", "Cannot load quoting certificate");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+
+        X509_NAME* quoting_cert_sn = X509_get_subject_name(rih->quoting_cert_);
+        assert(quoting_cert_sn != nullptr);
+        char* quoting_cert_sn_str = X509_NAME_oneline(quoting_cert_sn, 0, 0);
+        assert(quoting_cert_sn_str != nullptr);
+        if (!rih->quoting_cert_sn_.empty() && rih->quoting_cert_sn_.compare(quoting_cert_sn_str) != 0)
+        {
+            OPENSSL_free(quoting_cert_sn_str);
+            WARNING_SECURITY_LOGGING("PKIDH", "Subject name in quoting certificate invalid");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+        rih->quoting_cert_sn_.assign(quoting_cert_sn_str);
+        OPENSSL_free(quoting_cert_sn_str);
+        BIO* quoting_cert_sn_rfc2253_str = BIO_new(BIO_s_mem());
+        X509_NAME_print_ex(quoting_cert_sn_rfc2253_str, quoting_cert_sn, 0, XN_FLAG_RFC2253 & ~ASN1_STRFLGS_ESC_MSB);
+        const int bufsize = 1024;
+        char buffer[bufsize];
+        int str_length = BIO_read(quoting_cert_sn_rfc2253_str, buffer, bufsize);
+        BIO_free(quoting_cert_sn_rfc2253_str);
+        rih->quoting_cert_sn_rfc2253_.assign(buffer, str_length);
+
+        if (!verify_certificate(lih->privacy_store_, rih->quoting_cert_, lih->there_are_privacy_crls_))
+        {
+            WARNING_SECURITY_LOGGING("PKIDH", "Error verifying quoting certificate");
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+
+        // Unmarshal and verify attestation evidence
+        TPM2B_ATTEST quoted;
+        TPMT_SIGNATURE quoted_signature;
+        std::vector<TPML_DIGEST> pcr_digests;
+        if (!unmarshal_attestation_evidence(handshake_message_in,
+                quoted, quoted_signature, rih->pcr_selections_, pcr_digests, exception))
+        {
+            EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+
+        rih->pcr_map_.clear();
+        if (!verify_attestation_evidence(rih->quoting_cert_, quoted, quoted_signature,
+                cdrmessage2.buffer, cdrmessage2.length, rih->pcr_selections_, pcr_digests, rih->pcr_map_, exception))
+        {
+            EMERGENCY_SECURITY_LOGGING("PKIDH", "Failed to verify attestation evidence");
+            EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+    }
+    // --- End of additional attestation properties -----
+    // --------------------------------------------------
+
     // Generate handshake final message token.
     HandshakeMessageToken final_message;
     final_message.binary_properties().clear();
@@ -2200,6 +2854,39 @@ ValidationResult_t PKIDH::process_handshake_request(
                     *DataHolderHelper::find_binary_property_value(final_message, "challenge1")));
             (*handshake_handle->sharedsecret_)->data_.emplace_back(SharedSecret::BinaryData("Challenge2",
                     *DataHolderHelper::find_binary_property_value(final_message, "challenge2")));
+
+            // --------------------------------------------------
+            // --- Additional attestation properties ------------
+            if (lih->offer_attestation_ && rih->accept_attestation_)
+            {
+                // Generate attestation evidence
+                TPM2B_ATTEST* quoted = nullptr;
+                TPMT_SIGNATURE* quoted_signature = nullptr;
+                std::vector<TPML_DIGEST> pcr_digests;
+                if (!generate_attestation_evidence(
+                      lih->tcti_options_, lih->quoting_key_, lih->pcr_selections_,
+                      cdrmessage2.buffer, cdrmessage2.length,
+                      &quoted, &quoted_signature, pcr_digests, exception))
+                {
+                    EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+                    if (quoted) free(quoted);
+                    if (quoted_signature) free(quoted_signature);
+                    return ValidationResult_t::VALIDATION_FAILED;
+                }
+
+                if (!marshal_attestation_evidence(final_message,
+                      *quoted, *quoted_signature, lih->pcr_selections_, pcr_digests, exception))
+                {
+                    EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+                    free(quoted);
+                    free(quoted_signature);
+                    return ValidationResult_t::VALIDATION_FAILED;
+                }
+                free(quoted);
+                free(quoted_signature);
+            }
+            // --- End of additional attestation properties -----
+            // --------------------------------------------------
 
             handshake_handle->handshake_message_ = std::move(final_message);
             *handshake_message_out = &handshake_handle->handshake_message_;
@@ -2384,6 +3071,33 @@ ValidationResult_t PKIDH::process_handshake_reply(
         WARNING_SECURITY_LOGGING("PKIDH", "Error verifying signature");
         return ValidationResult_t::VALIDATION_FAILED;
     }
+
+    // --------------------------------------------------
+    // --- Additional attestation properties ------------
+    const PKIIdentityHandle& lih = *handshake_handle->local_identity_handle_;
+    if (rih->offer_attestation_ && lih->accept_attestation_)
+    {
+        TPM2B_ATTEST quoted;
+        TPMT_SIGNATURE quoted_signature;
+        std::vector<TPML_DIGEST> pcr_digests;
+        if (!unmarshal_attestation_evidence(handshake_message_in,
+                quoted, quoted_signature, rih->pcr_selections_, pcr_digests, exception))
+        {
+            EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+
+        rih->pcr_map_.clear();
+        if (!verify_attestation_evidence(rih->quoting_cert_, quoted, quoted_signature,
+                cdrmessage.buffer, cdrmessage.length, rih->pcr_selections_, pcr_digests, rih->pcr_map_, exception))
+        {
+            EMERGENCY_SECURITY_LOGGING("PKIDH", "Failed to verify attestation evidence");
+            EMERGENCY_SECURITY_LOGGING("PKIDH", exception.what());
+            return ValidationResult_t::VALIDATION_FAILED;
+        }
+    }
+    // --- End of additional attestation properties -----
+    // --------------------------------------------------
 
     handshake_handle->sharedsecret_ =
             std::dynamic_pointer_cast<SharedSecretHandle>(

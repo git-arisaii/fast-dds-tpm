@@ -320,6 +320,10 @@ set(${PROJECT_NAME}_security_source_files
     security/logging/LogTopic.cpp
     security/artifact_providers/FileProvider.cpp
     security/artifact_providers/Pkcs11Provider.cpp
+    security/tpm/TpmHelper.cpp
+    security/tpm/TpmMu.cpp
+    security/tpm/TpmPcrs.cpp
+    security/tpm/TpmQuote.cpp
     )
 
 if(SECURITY)
@@ -502,7 +506,7 @@ else()
 endif()
 
 # Link library to external libraries.
-target_link_libraries(${PROJECT_NAME} ${PRIVACY} fastcdr foonathan_memory
+target_link_libraries(${PROJECT_NAME} ${PRIVACY} fastcdr foonathan_memory tss2-esys tss2-mu tss2-tctildr
     ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS}
     ${TINYXML2_LIBRARY}
     $<$<BOOL:${LINK_SSL}>:OpenSSL::SSL$<SEMICOLON>OpenSSL::Crypto$<$<BOOL:${WIN32}>:$<SEMICOLON>crypt32.lib>>
