@@ -21,6 +21,23 @@
                 </publish>
             </allow_rule>
             <default>DENY</default>
+            <!-- Optional <pcr_selections> tags -->
+            <pcr_selections>
+                <!-- Expected subject name of the quoting key -->
+                <subject_name> CN=myQuotingKey, OU=myCompany</subject_name>
+                <!-- At least one <pcr_selection> must be fully included in the attestation evidence for the grant to match -->
+                <pcr_selection bank="sha1">
+                    0  : 0x0000000000000000000000000000000000000000
+                    7  : 0x0000000000000000000000000000000000000000
+                    10 : 0x0000000000000000000000000000000000000000
+                </pcr_selection>
+                <pcr_selection bank="sha256">
+                    0  : 0x0000000000000000000000000000000000000000000000000000000000000000
+                    7  : 0x0000000000000000000000000000000000000000000000000000000000000000
+                    10 : 0x0000000000000000000000000000000000000000000000000000000000000000
+                </pcr_selection>
+            </pcr_selections>
+            <!-- Specify multiple <pcr_selections> tags to give reference values for different quoting key issuers -->
         </grant>
         <grant name="SubscriberPermissions">
             <subject_name> emailAddress=mainsub@eprosima.com, CN=Main Subscriber, OU=eProsima, O=eProsima, ST=MA, C=ES</subject_name>
@@ -42,6 +59,14 @@
                 </subscribe>
             </allow_rule>
             <default>DENY</default>
+            <pcr_selections>
+                <subject_name> CN=myQuotingKey, OU=myCompany</subject_name>
+                <pcr_selection bank="sha256">
+                    0  : 0x0000000000000000000000000000000000000000000000000000000000000000
+                    7  : 0x0000000000000000000000000000000000000000000000000000000000000000
+                    20 : 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+                </pcr_selection>
+            </pcr_selections>
         </grant>
     </permissions>
 </dds>

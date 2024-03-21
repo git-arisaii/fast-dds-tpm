@@ -2,6 +2,8 @@
 
 #include <vector>
 #include <fstream>
+#include <sstream>
+#include <iomanip>
 #include <openssl/err.h>
 
 #define S1(x) #x
@@ -105,6 +107,72 @@ bool calculateTpmDigest(
     }
 
     digest->size = size;
+    return true;
+}
+
+std::string tpmDigestToString(
+        const TPM2B_DIGEST& digest)
+{
+    std::stringstream stream;
+    for (int i = 0; i < digest.size; i++)
+        stream << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (unsigned int) digest.buffer[i];
+    return stream.str();
+}
+
+bool stringToTpmDigest(
+        std::string string,
+        TPM2B_DIGEST& digest,
+        SecurityException& exception)
+{
+    if (string.substr(0, 2) == "0x")
+        string.erase(0, 2);
+
+    if (string.size() % 2 != 0)
+        string.insert(0, 1, '0');
+
+    size_t pos = 0;
+    while (pos < string.size())
+    {
+        if (pos / 2 >= sizeof(digest.buffer))
+        {
+            exception = _SecurityException_("Hex string is too long for the digest buffer");
+            return false;
+        }
+
+        try
+        {
+            digest.buffer[pos / 2] = (uint8_t) std::stoi(string.substr(pos, 2), nullptr, 16);
+        }
+        catch (std::exception& e)
+        {
+            exception = _SecurityException_("Invalid hex string: " + std::string(e.what()));
+            return false;
+        }
+        pos += 2;
+    }
+
+    digest.size = pos / 2;
+    return true;
+}
+
+bool tpmDigestsEqual(
+        const TPM2B_DIGEST& digest_1,
+        const TPM2B_DIGEST& digest_2)
+{
+    if (digest_1.size != digest_2.size)
+    {
+        return false;
+    }
+
+    int k;
+    for (k = 0; k < digest_1.size; k++)
+    {
+        if (digest_1.buffer[k] != digest_2.buffer[k])
+        {
+            return false;
+        }
+    }
+
     return true;
 }
 

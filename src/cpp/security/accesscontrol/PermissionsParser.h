@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Paul Wagner, Fraunhofer IOSB, 2024
 
 #ifndef __SECURITY_ACCESSCONTROL_PERMISSIONSPARSER_H__
 #define __SECURITY_ACCESSCONTROL_PERMISSIONSPARSER_H__
@@ -52,6 +54,14 @@ class PermissionsParser
         bool parse_topic(tinyxml2::XMLElement* root, std::vector<std::string>& topics);
 
         bool parse_partition(tinyxml2::XMLElement* root, std::vector<std::string>& partitions);
+
+        // --------------------------------------------------
+        // --- Additional attestation properties ------------
+        bool parse_pcr_selections(tinyxml2::XMLElement* root, PcrSelections& pcr_selections);
+
+        bool parse_pcr_selection(tinyxml2::XMLElement* root, PcrSelection& pcr_selection);
+        // --- End of additional attestation properties -----
+        // --------------------------------------------------
 
         PermissionsData permissions_;
 };

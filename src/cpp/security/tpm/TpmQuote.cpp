@@ -24,27 +24,6 @@ namespace security {
 /* TPM functions modified from tpm2-tools.
  * SPDX-License-Identifier: BSD-3-Clause */
 
-static bool tpmDigestsEqual(
-        const TPM2B_DIGEST& digest_1,
-        const TPM2B_DIGEST& digest_2)
-{
-    if (digest_1.size != digest_2.size)
-    {
-        return false;
-    }
-
-    int k;
-    for (k = 0; k < digest_1.size; k++)
-    {
-        if (digest_1.buffer[k] != digest_2.buffer[k])
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 static uint8_t* tpmEcdhSignatureToBuffer(
         const TPMS_SIGNATURE_ECDSA& ecdsa,
         uint16_t* size)

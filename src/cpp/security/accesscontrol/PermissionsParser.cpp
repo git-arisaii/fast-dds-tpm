@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Paul Wagner, Fraunhofer IOSB, 2024
 
 #include <security/accesscontrol/PermissionsParser.h>
 #include <fastdds/dds/log/Log.hpp>
@@ -20,6 +22,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <regex>
 
 #if TIXML2_MAJOR_VERSION >= 6
 #define PRINTLINE(node) node->GetLineNum()
@@ -50,6 +53,8 @@ static const char* Partition_str = "partition";
 static const char* DataTags_str = "data_tags";
 static const char* Allow_str = "ALLOW";
 static const char* Deny_str = "DENY";
+static const char* PcrSelections_str = "pcr_selections";
+static const char* PcrSelection_str = "pcr_selection";
 
 using namespace eprosima::fastrtps::rtps::security;
 
@@ -297,6 +302,35 @@ bool PermissionsParser::parse_grant(
         EPROSIMA_LOG_ERROR(XMLPARSER, "Expected tag " << Default_str << ". Line " << PRINTLINE(old_node));
         return false;
     }
+
+    // --------------------------------------------------
+    // --- Additional attestation properties ------------
+    node = node->NextSiblingElement();
+
+    if (node != nullptr)
+    {
+        do
+        {
+            if (strcmp(node->Name(),PcrSelections_str) == 0)
+            {
+                PcrSelections pcr_selections;
+                if (!parse_pcr_selections(node, pcr_selections))
+                {
+                    return false;
+                }
+                grant.pcr_selections_list.push_back(std::move(pcr_selections));
+            }
+            else
+            {
+                EPROSIMA_LOG_ERROR(XMLPARSER,
+                        "Invalid tag. Expected  " << PcrSelections_str << " tag. Line " << PRINTLINE(node));
+                return false;
+            }
+        }
+        while ((node = node->NextSiblingElement()) != nullptr);
+    }
+    // --- End of additional attestation properties -----
+    // --------------------------------------------------
 
     return true;
 }
@@ -610,3 +644,150 @@ bool PermissionsParser::parse_partition(
 
     return returned_value;
 }
+
+// --------------------------------------------------
+// --- Additional attestation properties ------------
+
+bool PermissionsParser::parse_pcr_selections(
+        tinyxml2::XMLElement* root,
+        PcrSelections& pcr_selections)
+{
+    assert(root);
+
+    tinyxml2::XMLElement* node = root->FirstChildElement();
+
+    if (node != nullptr)
+    {
+        if (strcmp(node->Name(), SubjectName_str) == 0)
+        {
+            const char* text = node->GetText();
+
+            if (text != nullptr)
+            {
+                pcr_selections.subject_name = text;
+            }
+            else
+            {
+                EPROSIMA_LOG_ERROR(XMLPARSER,
+                        "Expected text in " << SubjectName_str << " tag. Line " << PRINTLINE(node));
+                return false;
+            }
+        }
+        else
+        {
+            EPROSIMA_LOG_ERROR(XMLPARSER, "Expected " << SubjectName_str << " tag. Line " << PRINTLINE(node));
+            return false;
+        }
+    }
+    else
+    {
+        EPROSIMA_LOG_ERROR(XMLPARSER, "Expected " << SubjectName_str << " tag. Line " << PRINTLINEPLUSONE(root));
+        return false;
+    }
+
+    tinyxml2::XMLElement* old_node = node;
+    (void)old_node;
+    node = node->NextSiblingElement();
+
+    if (node != nullptr)
+    {
+        do
+        {
+            PcrSelection pcr_selection;
+
+            if (strcmp(node->Name(), PcrSelection_str) == 0)
+            {
+                if (!parse_pcr_selection(node, pcr_selection))
+                {
+                    return false;
+                }
+                pcr_selections.pcr_selection_list.push_back(std::move(pcr_selection));
+            }
+            else
+            {
+                EPROSIMA_LOG_ERROR(XMLPARSER, "Expected " << PcrSelection_str << " tag. Line " << PRINTLINE(node));
+                return false;
+            }
+
+            old_node = node;
+        }
+        while ((node = node->NextSiblingElement()) != nullptr);
+    }
+    else
+    {
+        EPROSIMA_LOG_ERROR(XMLPARSER, "Expected " << PcrSelection_str << " tag. Line " <<
+                PRINTLINE(old_node));
+        return false;
+    }
+
+    return true;
+}
+
+bool PermissionsParser::parse_pcr_selection(
+        tinyxml2::XMLElement* root,
+        PcrSelection& pcr_selection)
+{
+    assert(root);
+
+    const char* bank = root->Attribute("bank");
+
+    if (bank != nullptr)
+    {
+        pcr_selection.pcr_bank = bank;
+    }
+    else
+    {
+        EPROSIMA_LOG_ERROR(XMLPARSER,
+                "Attribute bank is required in " << PcrSelection_str << " tag. Line " << PRINTLINE(root));
+        return false;
+    }
+
+    const char* text = root->GetText();
+
+    if (text != nullptr)
+    {
+        std::stringstream stream(text);
+        std::string line;
+
+        while (std::getline(stream, line))
+        {
+            if (line.empty() || std::all_of(line.begin(), line.end(), ::isspace))
+            {
+                continue;
+            }
+
+            size_t pos = line.find(':');
+            if (pos == std::string::npos)
+            {
+                EPROSIMA_LOG_ERROR(XMLPARSER,
+                        "Invalid PCR description '" << line << "' in " << PcrSelection_str << " tag. Line " << PRINTLINE(root));
+                return false;
+            }
+
+            try
+            {
+                uint32_t pcr_id = std::stoi(line.substr(0, pos));
+                std::string pcr_value = line.substr(pos + 1);
+                std::regex r("\\s+");
+                pcr_selection.pcr_values[pcr_id] = std::regex_replace(pcr_value, r, "");
+            }
+            catch (const std::exception& e)
+            {
+                EPROSIMA_LOG_ERROR(XMLPARSER,
+                        "Failed to parse PCR description '" << line << "' in " << PcrSelection_str << " tag. Reason: " << e.what() << ". Line " << PRINTLINE(root));
+                return false;
+            }
+        }
+    }
+    else
+    {
+        EPROSIMA_LOG_ERROR(XMLPARSER,
+                "Expected text in " << PcrSelection_str << " tag. Line " << PRINTLINE(root));
+        return false;
+    }
+
+    return true;
+}
+
+// --- End of additional attestation properties -----
+// --------------------------------------------------

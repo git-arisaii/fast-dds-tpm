@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Paul Wagner, Fraunhofer IOSB, 2024
 
 /*!
  * @file PermissionesTypes.h
@@ -19,6 +21,7 @@
 #define __SECURITY_ACCESSCONTROL_PERMISSIONSTYPES_H__
 
 #include <vector>
+#include <map>
 #include <string>
 #include <cstdint>
 #include <ctime>
@@ -54,6 +57,18 @@ struct Validity
     std::time_t not_after;
 };
 
+struct PcrSelection
+{
+    std::string pcr_bank;
+    std::map<uint32_t, std::string> pcr_values;
+};
+
+struct PcrSelections
+{
+    std::string subject_name;
+    std::vector<PcrSelection> pcr_selection_list;
+};
+
 struct Grant
 {
     std::string name;
@@ -61,6 +76,7 @@ struct Grant
     Validity validity;
     std::vector<Rule> rules;
     bool is_default_allow;
+    std::vector<PcrSelections> pcr_selections_list;
 };
 
 }

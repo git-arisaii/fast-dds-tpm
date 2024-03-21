@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Paul Wagner, Fraunhofer IOSB, 2024
 
 /*!
  * @file Permissions.cpp
@@ -45,6 +47,8 @@
 
 #include <security/artifact_providers/FileProvider.hpp>
 #include <security/accesscontrol/DistinguishedName.h>
+#include <security/tpm/TpmHelper.h>
+#include <security/tpm/TpmPcrs.h>
 
 #include <cassert>
 #include <fstream>
@@ -903,6 +907,78 @@ bool Permissions::return_permissions_handle(
     return false;
 }
 
+// --------------------------------------------------
+// --- Additional attestation properties ------------
+static bool pcr_reference_values_match(
+        std::vector<PcrSelections>& pcr_selections_list,
+        const PKIIdentityHandle& rih,
+        SecurityException& exception)
+{
+    for (const PcrSelections& pcr_selections : pcr_selections_list)
+    {
+        if (rfc2253_string_compare(pcr_selections.subject_name, rih->quoting_cert_sn_rfc2253_) ||
+                    strcmp(pcr_selections.subject_name.c_str(), rih->quoting_cert_sn_.c_str()) == 0)
+        {
+            for (const PcrSelection& pcr_selection : pcr_selections.pcr_selection_list)
+            {
+                TPM2_ALG_ID hash_alg = getTpmHashAlgId(pcr_selection.pcr_bank);
+                if (hash_alg == TPM2_ALG_NULL)
+                {
+                    exception = _SecurityException_("Unsupported PCR bank '" + pcr_selection.pcr_bank + "' in remote participant's permissions file");
+                    return false;
+                }
+
+                if (rih->pcr_map_.find(hash_alg) != rih->pcr_map_.end())
+                {
+                    bool match_found = true;
+                    const std::map<uint32_t, TPM2B_DIGEST>& m = rih->pcr_map_.at(hash_alg);
+
+                    // Every specified PCR value must be included in attested map
+                    for (auto const& p : pcr_selection.pcr_values)
+                    {
+                        uint32_t pcr_id = p.first;
+                        if (m.find(pcr_id) == m.end())
+                        {
+                            match_found = false;
+                            break; // PCR register not attested
+                        }
+
+                        TPM2B_DIGEST attested_digest = m.at(pcr_id);
+                        TPM2B_DIGEST reference_digest;
+                        if (!stringToTpmDigest(p.second, reference_digest, exception))
+                        {
+                            return false;
+                        }
+                        if (!tpmDigestsEqual(attested_digest, reference_digest))
+                        {
+                            match_found = false;
+                            break; // PCR value does not match
+                        }
+                    }
+
+                    if (match_found)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    std::string e = "No matching PCR reference values found in remote participant's permissions file. Attested PCRs are:\n";
+    for (const auto& pcr_bank : rih->pcr_map_)
+    {
+        e.append("  " + getTpmHashAlgName(pcr_bank.first) + ":\n");
+        for (const auto& pcr : pcr_bank.second)
+        {
+            e.append("    " + std::to_string(pcr.first) + " : 0x" + tpmDigestToString(pcr.second) + "\n");
+        }
+    }
+    exception = _SecurityException_(e);
+    return false;
+}
+// --- End of additional attestation properties -----
+// --------------------------------------------------
+
 PermissionsHandle* Permissions::validate_remote_permissions(
         Authentication&,
         const IdentityHandle& local_identity_handle,
@@ -973,15 +1049,23 @@ PermissionsHandle* Permissions::validate_remote_permissions(
             if (rfc2253_string_compare(grant.subject_name, rih->cert_sn_rfc2253_) ||
                     strcmp(grant.subject_name.c_str(), rih->cert_sn_.c_str()) == 0)
             {
-                remote_grant = std::move(grant);
-                break;
+                if (grant.pcr_selections_list.empty() || pcr_reference_values_match(grant.pcr_selections_list, rih, exception))
+                {
+                    remote_grant = std::move(grant);
+                    break;
+                }
+                else
+                {
+                    EMERGENCY_SECURITY_LOGGING("Permissions", exception.what());
+                    return nullptr;
+                }
             }
         }
     }
 
     if (remote_grant.subject_name.empty())
     {
-        exception = _SecurityException_("Remote participant doesn't found in its permissions file");
+        exception = _SecurityException_("Remote participant not found in its permissions file");
         EMERGENCY_SECURITY_LOGGING("Permissions", exception.what());
         return nullptr;
     }

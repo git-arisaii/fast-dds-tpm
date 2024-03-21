@@ -45,14 +45,14 @@ Refer to [TPM 2.0 Keys for Device Identity and Attestation](https://trustedcompu
 ## Configure Remote Attestations
 To configure a DDS participant for remote attestation, all you need to do is to set the following QoS properties in the `dds.sec.auth.builtin.PKI-DH.tpm2` namespace.
 
-| Property      | Description                                                          | Example                |
-| ------------- | -------------------------------------------------------------------- | ---------------------- |
-| quoting_key   | Attestation key to use for generating quotes.                        | handle:0x81000000      |
+| Property      | Description                                                          | Example                    |
+| ------------- | -------------------------------------------------------------------- | -------------------------- |
+| quoting_key   | Attestation key to use for generating quotes.                        | handle:0x81000000          |
 | quoting_cert  | CA-signed certificate authenticating the attestation key.            | file[]()://quotingcert.pem |
 | privacy_ca    | CA certificate to authenticate remote attestation keys. Optional.    | file[]()://maincacert.pem  |
-| pcr_banks     | PCR banks to include in the generated quotes.                        | sha1,sha256            |
-| pcr_selection | PCR registers to include in the generated quotes.                    | 0-7,10                 |
-| tcti_options  | TCTI parameter string, e.g. to connect to a TPM simulator. Optional. | swtpm:port=2321        |
+| pcr_banks     | PCR banks to include in the generated quotes.                        | sha1,sha256                |
+| pcr_selection | PCR registers to include in the generated quotes.                    | 0-7,10                     |
+| tcti_options  | TCTI parameter string, e.g. to connect to a TPM simulator. Optional. | swtpm:port=2321            |
 
 See the project in [SecureHelloWorldWithTPMExample](examples/cpp/dds/SecureHelloWorldWithTPMExample) for a working configuration example.
 

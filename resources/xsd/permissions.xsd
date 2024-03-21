@@ -23,6 +23,9 @@
                 </xs:choice>
             </xs:sequence>
             <xs:element name="default" type="DefaultAction" />
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:element name="pcr_selections" type="PcrSelections" />
+            </xs:sequence>
         </xs:sequence>
         <xs:attribute name="name" type="xs:string" use="required" />
     </xs:complexType>
@@ -105,5 +108,23 @@
             <xs:enumeration value="ALLOW" />
             <xs:enumeration value="DENY" />
         </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="PcrSelections">
+        <xs:sequence minOccurs="1" maxOccurs="1">
+            <xs:element name="subject_name" type="xs:string" />
+            <xs:sequence minOccurs="1" maxOccurs="unbounded">
+                <xs:element name="pcr_selection" type="PcrSelection" />
+            </xs:sequence>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PcrSelection">
+        <xs:simpleContent>
+            <xs:extension base="PcrSelectionContent">
+                <xs:attribute name="bank" type="xs:string" use="required" />
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+    <xs:simpleType name="PcrSelectionContent">
+        <xs:restriction base="xs:string" />
     </xs:simpleType>
 </xs:schema>

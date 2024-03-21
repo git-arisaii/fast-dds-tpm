@@ -25,6 +25,18 @@ bool calculateTpmDigest(
         TPM2B_DIGEST* digest,
         SecurityException& exception);
 
+std::string tpmDigestToString(
+        const TPM2B_DIGEST& digest);
+
+bool stringToTpmDigest(
+        std::string string,
+        TPM2B_DIGEST& digest,
+        SecurityException& exception);
+
+bool tpmDigestsEqual(
+        const TPM2B_DIGEST& digest_1,
+        const TPM2B_DIGEST& digest_2);
+
 std::string getTpmHashAlgName(
         TPM2_ALG_ID hash_alg);
 
