@@ -1,0 +1,224 @@
+/*
+ * Protocol:  DDS authentication + remote attestation
+ * Modeler:   Paul Wagner
+ * Date:      April 2024
+ */
+theory DDSAuthTPM
+begin
+
+builtins: hashing, signing, diffie-hellman, symmetric-encryption
+
+// Define two DDS participants (Alice and Bob)
+rule Participants:
+  []
+  -->
+  [Participant('A'), Participant('B')]
+
+// Create identity keys and certificates
+rule CreateIdentityKey:
+  [ Fr(~key), Participant(X) ]
+  --[
+    OnlyOnceFor(<'CreateIdentityKey', X>)
+    , IsIdentityKey(X, ~key)
+  ]->
+  [ Id(X, ~key), !IdCert(X, pk(~key)) ]
+
+rule IdentityCertsArePublic:
+  [ !IdCert('A', idCertA), !IdCert('B', idCertB) ]
+  -->
+  [ Out(idCertA), Out(idCertB) ]
+
+// Create attestation keys and certificates
+rule CreateAttestationKey:
+  [ Fr(~ak), Participant(X) ]
+  --[
+    OnlyOnceFor(<'CreateAttestationKey', X>)
+    , IsAk(X, ~ak)
+  ]->
+  [ Ak(X, ~ak), !AkCert(X, pk(~ak)) ]
+
+rule AkCertsArePublic:
+  [ !AkCert('A', akCertA), !AkCert('B', akCertB) ]
+  -->
+  [ Out(akCertA), Out(akCertB) ]
+
+// Execute DDS authentication protocol between Alice (client) and Bob (server)
+rule HandshakeRequestMessage:
+  [ Fr(~nonceA)                       // Choose fresh nonce for Alice
+    , Fr(~a)                          // Choose fresh DH private key for Alice
+    , !IdCert('A', idCertA)           // Load Alice's identity certificate
+    , !AkCert('A', akCertA)           // Load Alice's quoting certificate
+  ]
+  --[
+    AuthRequest('A', 'B', ~nonceA)    // Take note of Alice's authentication request
+  ]->
+  [ // Send message to Bob: c.id = idCertA, q.id = akCertA, challenge1 = nonceA, dh1 = g^a
+    Out(<'HandshakeRequestMessage', 'A', idCertA, akCertA, ~nonceA, 'g'^~a>)
+    , Alice_('B', ~nonceA, ~a)        // Save Alice's session
+  ]
+
+rule HandshakeReplyMessage:
+// According to the DDS security specification, the signature contains:
+//   hash_c2, challenge2, dh2, challenge1, dh1, and hash_c1 (in that order)
+let cdrbuf = <h(idCertB), ~nonceB, 'g'^~b, challenge1, dh1, h(idCertA)>
+    sigB = sign(cdrbuf, keyB)
+// The quote uses the cdr serialization buffer as qualifying data
+    quoteB = sign(<cdrbuf, 'PCRB'>, akB)
+in
+  [ In(<'HandshakeRequestMessage', A, c_id, q_id, challenge1, dh1>)
+    , Fr(~nonceB)                                 // Choose fresh nonce for Bob
+    , Fr(~b)                                      // Choose fresh DH private key for Bob
+    , Id('B', keyB), !IdCert('B', idCertB)        // Load Bob's identity key
+    , Ak('B', akB), !AkCert('B', akCertB)         // Load Bob's quoting key
+    , !IdCert(A, idCertA), !AkCert(A, akCertA)    // Load Alice's certificates
+  ]
+  --[
+    Neq(dh1, 'g')                                 // Alice's public DH key must not be 'g'
+    , Eq(idCertA, c_id), Eq(akCertA, q_id)        // Verify transmitted certificates are trusted
+    , AuthResponse('B', A, ~nonceB, sigB, quoteB) // Take note of Bob's authentication response
+  ]->
+  [ // Send message to Alice: c.id = idCertB, q.id = akCertB, challenge1, challenge2 = nonceB, dh2 = g^b, signature = sigB, qSignature = quoteB
+    Out(<'HandshakeReplyMessage', 'B', idCertB, akCertB, challenge1, ~nonceB, 'g'^~b, sigB, quoteB>)
+    , Bob_(A, ~nonceB, ~b, dh1)                   // Save Bob's session
+  ]
+
+rule HandshakeFinal:
+// According to the DDS security specification, the signature contains:
+//   hash_c1, challenge1, dh1, challenge2, dh2, and hash_c2 (in that order)
+let cdrbuf = <h(idCertA), nonceA, 'g'^a, challenge2, dh2, h(idCertB)>
+    sigA = sign(cdrbuf, keyA)
+// The quote uses the cdr serialization buffer as qualifying data
+    quoteA = sign(<cdrbuf, 'PCRA'>, akA)
+in
+  [ In(<'HandshakeReplyMessage', B, c_id, q_id, challenge1, challenge2, dh2, signature, qSignature>)
+    , Alice_(B, nonceA, a)                     // Retrieve own nonce and DH key from session
+    , Id('A', keyA), !IdCert('A', idCertA)     // Load Alice's identity key
+    , Ak('A', akA), !AkCert('A', akCertA)      // Load Alice's quoting key
+    , !IdCert(B, idCertB), !AkCert(B, akCertB) // Load Bob's certificates
+  ]
+  --[ 
+    Neq(dh2, 'g')                              // Bob's public DH key must not be 'g'
+    , Eq(idCertB, c_id), Eq(akCertB, q_id)     // Verify transmitted certificates are trusted
+    , Eq(nonceA, challenge1)                   // Verify transmitted nonce matches
+    , Eq(verify(signature,                     // Verify the signature
+                <h(idCertB), challenge2, dh2, challenge1, 'g'^a, h(idCertA)>,
+                idCertB), true)
+    , Eq(verify(qSignature,                    // Verify the quote
+                <<h(idCertB), challenge2, dh2, challenge1, 'g'^a, h(idCertA)>, 'PCRB'>,
+                akCertB), true)
+    , AuthFinal('A', B, sigA, quoteA)          // Take note of Alice's auth finalization
+    , Attested('A', B, challenge1, akCertB)    // Take note that Alice attested Bob
+    , EstablishedSecret('A', dh2^a)            // Take note of Alice's established secret
+  ]->
+  [ // Send message to Bob: challenge1, challenge2, signature = sigA, qSignature = quoteA
+    Out(<'HandshakeFinal', 'A', challenge1, challenge2, sigA, quoteA>)
+  ]
+
+rule HandshakeFinal2:
+  [ In(<'HandshakeFinal', A, challenge1, challenge2, signature, qSignature>)
+    , Bob_(A, nonceB, b, dh1)                  // Retrieve own nonce and DH key from session
+    , !IdCert('B', idCertB)                    // Load Bob's identity certificate
+    , !IdCert(A, idCertA), !AkCert(A, akCertA) // Load Alices's certificates
+  ]
+  --[ 
+    Eq(nonceB, challenge2)                     // Verify transmitted nonce matches
+    , Eq(verify(signature,                     // Verify the signature
+                <h(idCertA), challenge1, dh1, challenge2, 'g'^b, h(idCertB)>,
+                idCertA), true)
+    , Eq(verify(qSignature,                    // Verify the quote
+                <<h(idCertA), challenge1, dh1, challenge2, 'g'^b, h(idCertB)>, 'PCRA'>,
+                akCertA), true)
+    , Attested('B', A, challenge2, akCertA)    // Take note that Bob attested Alice
+    , EstablishedSecret('B', dh1^b)            // Take note of Bob's established secret
+  ]->
+  [ ]
+
+restriction Equality:
+  "All x y #i. Eq(x,y) @i ==> x = y"
+restriction InEquality:
+  "All x y #i. Neq(x,y) @i ==> not(x = y)"
+
+restriction OnlyOnceFor:
+  "All X #i #j. OnlyOnceFor(X)@#i & OnlyOnceFor(X)@#j ==> #i = #j"
+
+/* Prove that Alice and Bob can mutually authenticate each other and they establish a
+ * shared secret. Proving this lemma ensures that the model can be fully executed.
+ */
+lemma HonestProtocol:
+  exists-trace
+  " Ex challenge1 challenge2 dh1 dh2 idCertA idCertB keyA keyB akA akB secret #i #j #k #l #m.
+      AuthRequest('A', 'B', challenge1) @ #i
+      & AuthResponse('B', 'A', challenge2,
+            sign(<h(idCertB), challenge2, dh2, challenge1, dh1, h(idCertA)>, keyB),
+            sign(<<h(idCertB), challenge2, dh2, challenge1, dh1, h(idCertA)>, 'PCRB'>,akB)) @ #j
+      & AuthFinal('A', 'B',
+            sign(<h(idCertA), challenge1, dh1, challenge2, dh2, h(idCertB)>, keyA),
+            sign(<<h(idCertA), challenge1, dh1, challenge2, dh2, h(idCertB)>, 'PCRA'>, akA)) @ #k
+      & EstablishedSecret('A', secret) @ #l
+      & EstablishedSecret('B', secret) @ #m
+  "
+
+/* Prove that an attacker cannot intercept the established secret. The prover basically
+ * reduces this property to the security of an authenticated Diffie-Hellman key exchange.
+ */
+lemma EstablishedKeySecrecy:
+  " /* It cannot be that */
+    not(
+      Ex challenge1 challenge2 sigA sigB quoteA quoteB secret #i #j #k #l #m #n.
+        /* Alice and Bob authenticated each other, */
+        AuthRequest('A', 'B', challenge1) @ #i
+        & AuthResponse('B', 'A', challenge2, sigB, quoteB) @ #j
+        & AuthFinal('A', 'B', sigA, quoteA) @ #k
+        /* they established a shared secret, */
+        & EstablishedSecret('A', secret) @ #l
+        & EstablishedSecret('B', secret) @ #m
+        /* and the adversary knows the secret */
+        & K(secret) @ #n
+  )"
+
+/* Prove that Alice and Bob mutually attest to each other during the authentication,
+ * while establishing a single shared secret.
+ */
+lemma MutualAttestation:
+  exists-trace
+  "
+    Ex akA akB nonceA nonceB secret #i #j #k #l.
+      IsAk('A', akA) @ #i
+      & IsAk('B', akB) @ #j
+      & Attested('A', 'B', nonceA, pk(akB)) @ #k
+      & EstablishedSecret('A', secret) @ #k
+      & Attested('B', 'A', nonceB, pk(akA)) @ #l
+      & EstablishedSecret('B', secret) @ #l
+  "
+
+/* Sanity check: Prove that the attacker does not learn the used private keys.
+ * Otherwise the protocol would be trivially insecure, since an attacker could
+ * just forge signatures.
+ */
+lemma IdentityKeysDoNotLeak:
+  "not(
+    Ex keyA #i #j.
+      IsIdentityKey('A', keyA) @ #i
+      & K(keyA) @ #j
+  )
+  &
+  not(
+    Ex keyB #i #j.
+      IsIdentityKey('B', keyB) @ #i
+      & K(keyB) @ #j
+  )"
+
+lemma AksDoNotLeak:
+  "not(
+    Ex akA #i #j.
+      IsAk('A', akA) @ #i
+      & K(akA) @ #j
+  )
+  &
+  not(
+    Ex akB #i #j.
+      IsAk('B', akB) @ #i
+      & K(akB) @ #j
+  )"
+
+end
