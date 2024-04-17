@@ -1,0 +1,741 @@
+# Conducted on a Thinkpad T480s with an Infineon SLB9670 TPM 2.0 hardware module.
+
+Performing tests for type 'none'
+Performing 10 tests of type 'none' using 1 parallel connections...
+  | Iteration 1 of 10...   took 92ms.
+  | Iteration 2 of 10...   took 96ms.
+  | Iteration 3 of 10...   took 97ms.
+  | Iteration 4 of 10...   took 98ms.
+  | Iteration 5 of 10...   took 97ms.
+  | Iteration 6 of 10...   took 97ms.
+  | Iteration 7 of 10...   took 98ms.
+  | Iteration 8 of 10...   took 97ms.
+  | Iteration 9 of 10...   took 97ms.
+  | Iteration 10 of 10...   took 97ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 1
+min     = 92ms
+max     = 98ms
+mean    = 96.6ms
+sigma   = 1.7127ms
+*********************************************
+
+Performing 10 tests of type 'none' using 2 parallel connections...
+  | Iteration 1 of 10...   took 103ms.
+  | Iteration 2 of 10...   took 108ms.
+  | Iteration 3 of 10...   took 105ms.
+  | Iteration 4 of 10...   took 104ms.
+  | Iteration 5 of 10...   took 104ms.
+  | Iteration 6 of 10...   took 99ms.
+  | Iteration 7 of 10...   took 105ms.
+  | Iteration 8 of 10...   took 105ms.
+  | Iteration 9 of 10...   took 102ms.
+  | Iteration 10 of 10...   took 105ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 2
+min     = 99ms
+max     = 108ms
+mean    = 104ms
+sigma   = 2.35702ms
+*********************************************
+
+Performing 10 tests of type 'none' using 3 parallel connections...
+  | Iteration 1 of 10...   took 103ms.
+  | Iteration 2 of 10...   took 118ms.
+  | Iteration 3 of 10...   took 117ms.
+  | Iteration 4 of 10...   took 113ms.
+  | Iteration 5 of 10...   took 109ms.
+  | Iteration 6 of 10...   took 115ms.
+  | Iteration 7 of 10...   took 116ms.
+  | Iteration 8 of 10...   took 115ms.
+  | Iteration 9 of 10...   took 116ms.
+  | Iteration 10 of 10...   took 115ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 3
+min     = 103ms
+max     = 118ms
+mean    = 113.7ms
+sigma   = 4.49815ms
+*********************************************
+
+Performing 10 tests of type 'none' using 4 parallel connections...
+  | Iteration 1 of 10...   took 128ms.
+  | Iteration 2 of 10...   took 127ms.
+  | Iteration 3 of 10...   took 197ms.
+  | Iteration 4 of 10...   took 198ms.
+  | Iteration 5 of 10...   took 121ms.
+  | Iteration 6 of 10...   took 129ms.
+  | Iteration 7 of 10...   took 198ms.
+  | Iteration 8 of 10...   took 125ms.
+  | Iteration 9 of 10...   took 128ms.
+  | Iteration 10 of 10...   took 123ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 4
+min     = 121ms
+max     = 198ms
+mean    = 147.4ms
+sigma   = 34.7729ms
+*********************************************
+
+Performing 10 tests of type 'none' using 5 parallel connections...
+  | Iteration 1 of 10...   took 126ms.
+  | Iteration 2 of 10...   took 139ms.
+  | Iteration 3 of 10...   took 141ms.
+  | Iteration 4 of 10...   took 201ms.
+  | Iteration 5 of 10...   took 137ms.
+  | Iteration 6 of 10...   took 133ms.
+  | Iteration 7 of 10...   took 128ms.
+  | Iteration 8 of 10...   took 200ms.
+  | Iteration 9 of 10...   took 139ms.
+  | Iteration 10 of 10...   took 199ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 5
+min     = 126ms
+max     = 201ms
+mean    = 154.3ms
+sigma   = 31.8993ms
+*********************************************
+
+Performing 10 tests of type 'none' using 6 parallel connections...
+  | Iteration 1 of 10...   took 192ms.
+  | Iteration 2 of 10...   took 204ms.
+  | Iteration 3 of 10...   took 153ms.
+  | Iteration 4 of 10...   took 208ms.
+  | Iteration 5 of 10...   took 154ms.
+  | Iteration 6 of 10...   took 208ms.
+  | Iteration 7 of 10...   took 204ms.
+  | Iteration 8 of 10...   took 209ms.
+  | Iteration 9 of 10...   took 154ms.
+  | Iteration 10 of 10...   took 203ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 6
+min     = 153ms
+max     = 209ms
+mean    = 188.9ms
+sigma   = 24.7721ms
+*********************************************
+
+Performing 10 tests of type 'none' using 7 parallel connections...
+  | Iteration 1 of 10...   took 209ms.
+  | Iteration 2 of 10...   took 168ms.
+  | Iteration 3 of 10...   took 167ms.
+  | Iteration 4 of 10...   took 166ms.
+  | Iteration 5 of 10...   took 211ms.
+  | Iteration 6 of 10...   took 205ms.
+  | Iteration 7 of 10...   took 196ms.
+  | Iteration 8 of 10...   took 152ms.
+  | Iteration 9 of 10...   took 209ms.
+  | Iteration 10 of 10...   took 204ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 7
+min     = 152ms
+max     = 211ms
+mean    = 188.7ms
+sigma   = 22.6963ms
+*********************************************
+
+Performing 10 tests of type 'none' using 8 parallel connections...
+  | Iteration 1 of 10...   took 148ms.
+  | Iteration 2 of 10...   took 161ms.
+  | Iteration 3 of 10...   took 220ms.
+  | Iteration 4 of 10...   took 212ms.
+  | Iteration 5 of 10...   took 218ms.
+  | Iteration 6 of 10...   took 183ms.
+  | Iteration 7 of 10...   took 193ms.
+  | Iteration 8 of 10...   took 187ms.
+  | Iteration 9 of 10...   took 172ms.
+  | Iteration 10 of 10...   took 211ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = none
+conn    = 8
+min     = 148ms
+max     = 220ms
+mean    = 190.5ms
+sigma   = 24.9499ms
+*********************************************
+
+Performing tests for type 'secure'
+Performing 10 tests of type 'secure' using 1 parallel connections...
+  | Iteration 1 of 10...   took 332ms.
+  | Iteration 2 of 10...   took 346ms.
+  | Iteration 3 of 10...   took 338ms.
+  | Iteration 4 of 10...   took 333ms.
+  | Iteration 5 of 10...   took 341ms.
+  | Iteration 6 of 10...   took 339ms.
+  | Iteration 7 of 10...   took 336ms.
+  | Iteration 8 of 10...   took 344ms.
+  | Iteration 9 of 10...   took 345ms.
+  | Iteration 10 of 10...   took 331ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 1
+min     = 331ms
+max     = 346ms
+mean    = 338.5ms
+sigma   = 5.48229ms
+*********************************************
+
+Performing 10 tests of type 'secure' using 2 parallel connections...
+  | Iteration 1 of 10...   took 362ms.
+  | Iteration 2 of 10...   took 356ms.
+  | Iteration 3 of 10...   took 354ms.
+  | Iteration 4 of 10...   took 344ms.
+  | Iteration 5 of 10...   took 337ms.
+  | Iteration 6 of 10...   took 346ms.
+  | Iteration 7 of 10...   took 352ms.
+  | Iteration 8 of 10...   took 344ms.
+  | Iteration 9 of 10...   took 344ms.
+  | Iteration 10 of 10...   took 349ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 2
+min     = 337ms
+max     = 362ms
+mean    = 348.8ms
+sigma   = 7.29992ms
+*********************************************
+
+Performing 10 tests of type 'secure' using 3 parallel connections...
+  | Iteration 1 of 10...   took 392ms.
+  | Iteration 2 of 10...   took 400ms.
+  | Iteration 3 of 10...   took 402ms.
+  | Iteration 4 of 10...   took 417ms.
+  | Iteration 5 of 10...   took 410ms.
+  | Iteration 6 of 10...   took 403ms.
+  | Iteration 7 of 10...   took 417ms.
+  | Iteration 8 of 10...   took 411ms.
+  | Iteration 9 of 10...   took 415ms.
+  | Iteration 10 of 10...   took 411ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 3
+min     = 392ms
+max     = 417ms
+mean    = 407.8ms
+sigma   = 8.25698ms
+*********************************************
+
+Performing 10 tests of type 'secure' using 4 parallel connections...
+  | Iteration 1 of 10...   took 397ms.
+  | Iteration 2 of 10...   took 438ms.
+  | Iteration 3 of 10...   took 451ms.
+  | Iteration 4 of 10...   took 444ms.
+  | Iteration 5 of 10...   took 432ms.
+  | Iteration 6 of 10...   took 455ms.
+  | Iteration 7 of 10...   took 439ms.
+  | Iteration 8 of 10...   took 437ms.
+  | Iteration 9 of 10...   took 405ms.
+  | Iteration 10 of 10...   took 430ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 4
+min     = 397ms
+max     = 455ms
+mean    = 432.8ms
+sigma   = 18.546ms
+*********************************************
+
+Performing 10 tests of type 'secure' using 5 parallel connections...
+  | Iteration 1 of 10...   took 486ms.
+  | Iteration 2 of 10...   took 479ms.
+  | Iteration 3 of 10...   took 474ms.
+  | Iteration 4 of 10...   took 439ms.
+  | Iteration 5 of 10...   took 466ms.
+  | Iteration 6 of 10...   took 461ms.
+  | Iteration 7 of 10...   took 450ms.
+  | Iteration 8 of 10...   took 464ms.
+  | Iteration 9 of 10...   took 421ms.
+  | Iteration 10 of 10...   took 435ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 5
+min     = 421ms
+max     = 486ms
+mean    = 457.5ms
+sigma   = 20.8447ms
+*********************************************
+
+Performing 10 tests of type 'secure' using 6 parallel connections...
+  | Iteration 1 of 10...   took 557ms.
+  | Iteration 2 of 10...   took 507ms.
+  | Iteration 3 of 10...   took 481ms.
+  | Iteration 4 of 10...   took 494ms.
+  | Iteration 5 of 10...   took 491ms.
+  | Iteration 6 of 10...   took 473ms.
+  | Iteration 7 of 10...   took 455ms.
+  | Iteration 8 of 10...   took 462ms.
+  | Iteration 9 of 10...   took 488ms.
+  | Iteration 10 of 10...   took 456ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 6
+min     = 455ms
+max     = 557ms
+mean    = 486.4ms
+sigma   = 30.1927ms
+*********************************************
+
+Performing 10 tests of type 'secure' using 7 parallel connections...
+  | Iteration 1 of 10...   took 524ms.
+  | Iteration 2 of 10...   took 519ms.
+  | Iteration 3 of 10...   took 504ms.
+  | Iteration 4 of 10...   took 489ms.
+  | Iteration 5 of 10...   took 492ms.
+  | Iteration 6 of 10...   took 474ms.
+  | Iteration 7 of 10...   took 480ms.
+  | Iteration 8 of 10...   took 491ms.
+  | Iteration 9 of 10...   took 483ms.
+  | Iteration 10 of 10...   took 486ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 7
+min     = 474ms
+max     = 524ms
+mean    = 494.2ms
+sigma   = 16.4776ms
+*********************************************
+
+Performing 10 tests of type 'secure' using 8 parallel connections...
+  | Iteration 1 of 10...   took 488ms.
+  | Iteration 2 of 10...   took 527ms.
+  | Iteration 3 of 10...   took 523ms.
+  | Iteration 4 of 10...   took 506ms.
+  | Iteration 5 of 10...   took 510ms.
+  | Iteration 6 of 10...   took 515ms.
+  | Iteration 7 of 10...   took 534ms.
+  | Iteration 8 of 10...   took 524ms.
+  | Iteration 9 of 10...   took 535ms.
+  | Iteration 10 of 10...   took 537ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = secure
+conn    = 8
+min     = 488ms
+max     = 537ms
+mean    = 519.9ms
+sigma   = 15.38ms
+*********************************************
+
+Performing tests for type 'uni'
+Performing 10 tests of type 'uni' using 1 parallel connections...
+  | Iteration 1 of 10...   took 542ms.
+  | Iteration 2 of 10...   took 518ms.
+  | Iteration 3 of 10...   took 519ms.
+  | Iteration 4 of 10...   took 530ms.
+  | Iteration 5 of 10...   took 528ms.
+  | Iteration 6 of 10...   took 530ms.
+  | Iteration 7 of 10...   took 524ms.
+  | Iteration 8 of 10...   took 504ms.
+  | Iteration 9 of 10...   took 517ms.
+  | Iteration 10 of 10...   took 520ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 1
+min     = 504ms
+max     = 542ms
+mean    = 523.2ms
+sigma   = 10.174ms
+*********************************************
+
+Performing 10 tests of type 'uni' using 2 parallel connections...
+  | Iteration 1 of 10...   took 740ms.
+  | Iteration 2 of 10...   took 710ms.
+  | Iteration 3 of 10...   took 712ms.
+  | Iteration 4 of 10...   took 726ms.
+  | Iteration 5 of 10...   took 714ms.
+  | Iteration 6 of 10...   took 711ms.
+  | Iteration 7 of 10...   took 710ms.
+  | Iteration 8 of 10...   took 709ms.
+  | Iteration 9 of 10...   took 690ms.
+  | Iteration 10 of 10...   took 675ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 2
+min     = 675ms
+max     = 740ms
+mean    = 709.7ms
+sigma   = 17.645ms
+*********************************************
+
+Performing 10 tests of type 'uni' using 3 parallel connections...
+  | Iteration 1 of 10...   took 893ms.
+  | Iteration 2 of 10...   took 883ms.
+  | Iteration 3 of 10...   took 877ms.
+  | Iteration 4 of 10...   took 896ms.
+  | Iteration 5 of 10...   took 884ms.
+  | Iteration 6 of 10...   took 874ms.
+  | Iteration 7 of 10...   took 886ms.
+  | Iteration 8 of 10...   took 869ms.
+  | Iteration 9 of 10...   took 884ms.
+  | Iteration 10 of 10...   took 893ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 3
+min     = 869ms
+max     = 896ms
+mean    = 883.9ms
+sigma   = 8.72353ms
+*********************************************
+
+Performing 10 tests of type 'uni' using 4 parallel connections...
+  | Iteration 1 of 10...   took 1102ms.
+  | Iteration 2 of 10...   took 1067ms.
+  | Iteration 3 of 10...   took 1063ms.
+  | Iteration 4 of 10...   took 1064ms.
+  | Iteration 5 of 10...   took 1062ms.
+  | Iteration 6 of 10...   took 1060ms.
+  | Iteration 7 of 10...   took 1077ms.
+  | Iteration 8 of 10...   took 1058ms.
+  | Iteration 9 of 10...   took 1068ms.
+  | Iteration 10 of 10...   took 1051ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 4
+min     = 1051ms
+max     = 1102ms
+mean    = 1067.2ms
+sigma   = 13.9905ms
+*********************************************
+
+Performing 10 tests of type 'uni' using 5 parallel connections...
+  | Iteration 1 of 10...   took 1263ms.
+  | Iteration 2 of 10...   took 1238ms.
+  | Iteration 3 of 10...   took 1231ms.
+  | Iteration 4 of 10...   took 1240ms.
+  | Iteration 5 of 10...   took 1247ms.
+  | Iteration 6 of 10...   took 1242ms.
+  | Iteration 7 of 10...   took 1238ms.
+  | Iteration 8 of 10...   took 1240ms.
+  | Iteration 9 of 10...   took 1244ms.
+  | Iteration 10 of 10...   took 1249ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 5
+min     = 1231ms
+max     = 1263ms
+mean    = 1243.2ms
+sigma   = 8.59974ms
+*********************************************
+
+Performing 10 tests of type 'uni' using 6 parallel connections...
+  | Iteration 1 of 10...   took 1454ms.
+  | Iteration 2 of 10...   took 1416ms.
+  | Iteration 3 of 10...   took 1417ms.
+  | Iteration 4 of 10...   took 1411ms.
+  | Iteration 5 of 10...   took 1410ms.
+  | Iteration 6 of 10...   took 1416ms.
+  | Iteration 7 of 10...   took 1427ms.
+  | Iteration 8 of 10...   took 1413ms.
+  | Iteration 9 of 10...   took 1425ms.
+  | Iteration 10 of 10...   took 1417ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 6
+min     = 1410ms
+max     = 1454ms
+mean    = 1420.6ms
+sigma   = 12.9375ms
+*********************************************
+
+Performing 10 tests of type 'uni' using 7 parallel connections...
+  | Iteration 1 of 10...   took 1629ms.
+  | Iteration 2 of 10...   took 1608ms.
+  | Iteration 3 of 10...   took 1601ms.
+  | Iteration 4 of 10...   took 1603ms.
+  | Iteration 5 of 10...   took 1601ms.
+  | Iteration 6 of 10...   took 1591ms.
+  | Iteration 7 of 10...   took 1594ms.
+  | Iteration 8 of 10...   took 1599ms.
+  | Iteration 9 of 10...   took 1612ms.
+  | Iteration 10 of 10...   took 1592ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 7
+min     = 1591ms
+max     = 1629ms
+mean    = 1603ms
+sigma   = 11.3137ms
+*********************************************
+
+Performing 10 tests of type 'uni' using 8 parallel connections...
+  | Iteration 1 of 10...   took 1825ms.
+  | Iteration 2 of 10...   took 1801ms.
+  | Iteration 3 of 10...   took 1803ms.
+  | Iteration 4 of 10...   took 1779ms.
+  | Iteration 5 of 10...   took 1798ms.
+  | Iteration 6 of 10...   took 1790ms.
+  | Iteration 7 of 10...   took 1780ms.
+  | Iteration 8 of 10...   took 1797ms.
+  | Iteration 9 of 10...   took 1795ms.
+  | Iteration 10 of 10...   took 1782ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = uni
+conn    = 8
+min     = 1779ms
+max     = 1825ms
+mean    = 1795ms
+sigma   = 13.6951ms
+*********************************************
+
+Performing tests for type 'bid'
+Performing 10 tests of type 'bid' using 1 parallel connections...
+  | Iteration 1 of 10...   took 693ms.
+  | Iteration 2 of 10...   took 712ms.
+  | Iteration 3 of 10...   took 717ms.
+  | Iteration 4 of 10...   took 706ms.
+  | Iteration 5 of 10...   took 705ms.
+  | Iteration 6 of 10...   took 717ms.
+  | Iteration 7 of 10...   took 719ms.
+  | Iteration 8 of 10...   took 717ms.
+  | Iteration 9 of 10...   took 710ms.
+  | Iteration 10 of 10...   took 719ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 1
+min     = 693ms
+max     = 719ms
+mean    = 711.5ms
+sigma   = 8.30328ms
+*********************************************
+
+Performing 10 tests of type 'bid' using 2 parallel connections...
+  | Iteration 1 of 10...   took 1109ms.
+  | Iteration 2 of 10...   took 1085ms.
+  | Iteration 3 of 10...   took 1089ms.
+  | Iteration 4 of 10...   took 1082ms.
+  | Iteration 5 of 10...   took 1088ms.
+  | Iteration 6 of 10...   took 1087ms.
+  | Iteration 7 of 10...   took 1099ms.
+  | Iteration 8 of 10...   took 1088ms.
+  | Iteration 9 of 10...   took 1053ms.
+  | Iteration 10 of 10...   took 1066ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 2
+min     = 1053ms
+max     = 1109ms
+mean    = 1084.6ms
+sigma   = 15.6432ms
+*********************************************
+
+Performing 10 tests of type 'bid' using 3 parallel connections...
+  | Iteration 1 of 10...   took 1471ms.
+  | Iteration 2 of 10...   took 1429ms.
+  | Iteration 3 of 10...   took 1438ms.
+  | Iteration 4 of 10...   took 1456ms.
+  | Iteration 5 of 10...   took 1443ms.
+  | Iteration 6 of 10...   took 1442ms.
+  | Iteration 7 of 10...   took 1431ms.
+  | Iteration 8 of 10...   took 1449ms.
+  | Iteration 9 of 10...   took 1446ms.
+  | Iteration 10 of 10...   took 1440ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 3
+min     = 1429ms
+max     = 1471ms
+mean    = 1444.5ms
+sigma   = 12.2497ms
+*********************************************
+
+Performing 10 tests of type 'bid' using 4 parallel connections...
+  | Iteration 1 of 10...   took 1794ms.
+  | Iteration 2 of 10...   took 1783ms.
+  | Iteration 3 of 10...   took 1798ms.
+  | Iteration 4 of 10...   took 1815ms.
+  | Iteration 5 of 10...   took 1805ms.
+  | Iteration 6 of 10...   took 1789ms.
+  | Iteration 7 of 10...   took 1805ms.
+  | Iteration 8 of 10...   took 1803ms.
+  | Iteration 9 of 10...   took 1790ms.
+  | Iteration 10 of 10...   took 1790ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 4
+min     = 1783ms
+max     = 1815ms
+mean    = 1797.2ms
+sigma   = 9.75021ms
+*********************************************
+
+Performing 10 tests of type 'bid' using 5 parallel connections...
+  | Iteration 1 of 10...   took 2172ms.
+  | Iteration 2 of 10...   took 2140ms.
+  | Iteration 3 of 10...   took 2144ms.
+  | Iteration 4 of 10...   took 2139ms.
+  | Iteration 5 of 10...   took 2152ms.
+  | Iteration 6 of 10...   took 2143ms.
+  | Iteration 7 of 10...   took 2142ms.
+  | Iteration 8 of 10...   took 2137ms.
+  | Iteration 9 of 10...   took 2146ms.
+  | Iteration 10 of 10...   took 2144ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 5
+min     = 2137ms
+max     = 2172ms
+mean    = 2145.9ms
+sigma   = 10.0604ms
+*********************************************
+
+Performing 10 tests of type 'bid' using 6 parallel connections...
+  | Iteration 1 of 10...   took 2537ms.
+  | Iteration 2 of 10...   took 2502ms.
+  | Iteration 3 of 10...   took 2496ms.
+  | Iteration 4 of 10...   took 2508ms.
+  | Iteration 5 of 10...   took 2496ms.
+  | Iteration 6 of 10...   took 2510ms.
+  | Iteration 7 of 10...   took 2517ms.
+  | Iteration 8 of 10...   took 2504ms.
+  | Iteration 9 of 10...   took 2507ms.
+  | Iteration 10 of 10...   took 2519ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 6
+min     = 2496ms
+max     = 2537ms
+mean    = 2509.6ms
+sigma   = 12.3036ms
+*********************************************
+
+Performing 10 tests of type 'bid' using 7 parallel connections...
+  | Iteration 1 of 10...   took 2889ms.
+  | Iteration 2 of 10...   took 2861ms.
+  | Iteration 3 of 10...   took 2876ms.
+  | Iteration 4 of 10...   took 2881ms.
+  | Iteration 5 of 10...   took 2878ms.
+  | Iteration 6 of 10...   took 2872ms.
+  | Iteration 7 of 10...   took 2872ms.
+  | Iteration 8 of 10...   took 2872ms.
+  | Iteration 9 of 10...   took 2884ms.
+  | Iteration 10 of 10...   took 2885ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 7
+min     = 2861ms
+max     = 2889ms
+mean    = 2877ms
+sigma   = 8.20569ms
+*********************************************
+
+Performing 10 tests of type 'bid' using 8 parallel connections...
+  | Iteration 1 of 10...   took 3273ms.
+  | Iteration 2 of 10...   took 3244ms.
+  | Iteration 3 of 10...   took 3239ms.
+  | Iteration 4 of 10...   took 3240ms.
+  | Iteration 5 of 10...   took 3251ms.
+  | Iteration 6 of 10...   took 3247ms.
+  | Iteration 7 of 10...   took 3252ms.
+  | Iteration 8 of 10...   took 3254ms.
+  | Iteration 9 of 10...   took 3254ms.
+  | Iteration 10 of 10...   took 3237ms.
+Finished.
+
+************** Results **********************
+n       = 10
+type    = bid
+conn    = 8
+min     = 3237ms
+max     = 3273ms
+mean    = 3249.1ms
+sigma   = 10.5034ms
+*********************************************

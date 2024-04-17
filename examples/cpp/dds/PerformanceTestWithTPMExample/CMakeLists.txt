@@ -55,7 +55,12 @@ install(TARGETS DDSPerformanceTestWithTPMExample
     RUNTIME DESTINATION examples/cpp/dds/PerformanceTestWithTPMExample/${BIN_INSTALL_DIR})
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/certs
     DESTINATION examples/cpp/dds/PerformanceTestWithTPMExample/${BIN_INSTALL_DIR})
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/results
+    DESTINATION examples/cpp/dds/PerformanceTestWithTPMExample/${BIN_INSTALL_DIR})
 install(FILES ${PROJECT_SOURCE_DIR}/generate_quoting_key.sh
+    PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ WORLD_READ
+    DESTINATION examples/cpp/dds/PerformanceTestWithTPMExample/${BIN_INSTALL_DIR})
+install(FILES ${PROJECT_SOURCE_DIR}/perform_test.sh
     PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ WORLD_READ
     DESTINATION examples/cpp/dds/PerformanceTestWithTPMExample/${BIN_INSTALL_DIR})
 
@@ -64,8 +69,18 @@ add_custom_command(TARGET DDSPerformanceTestWithTPMExample POST_BUILD
             ${PROJECT_SOURCE_DIR}/certs
             ${PROJECT_BINARY_DIR}/certs)
 add_custom_command(TARGET DDSPerformanceTestWithTPMExample POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${PROJECT_SOURCE_DIR}/results
+            ${PROJECT_BINARY_DIR}/results)
+add_custom_command(TARGET DDSPerformanceTestWithTPMExample POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
             ${PROJECT_SOURCE_DIR}/generate_quoting_key.sh
             ${PROJECT_BINARY_DIR})
 add_custom_command(TARGET DDSPerformanceTestWithTPMExample POST_BUILD
     COMMAND chmod +x ${PROJECT_BINARY_DIR}/generate_quoting_key.sh)
+add_custom_command(TARGET DDSPerformanceTestWithTPMExample POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${PROJECT_SOURCE_DIR}/perform_test.sh
+            ${PROJECT_BINARY_DIR})
+add_custom_command(TARGET DDSPerformanceTestWithTPMExample POST_BUILD
+    COMMAND chmod +x ${PROJECT_BINARY_DIR}/perform_test.sh)
