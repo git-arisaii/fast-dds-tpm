@@ -32,9 +32,9 @@
                     10 : 0x0000000000000000000000000000000000000000
                 </pcr_selection>
                 <pcr_selection bank="sha256">
-                    0  : 0x0000000000000000000000000000000000000000000000000000000000000000
-                    7  : 0x0000000000000000000000000000000000000000000000000000000000000000
-                    10 : 0x0000000000000000000000000000000000000000000000000000000000000000
+                    0  : 0x863F1067733A1264040FB71493BB0EBDCB55B563556B327681EE2B544C9634C8
+                    7  : 0xF77775E7A157F14B1A8A8A9A5A630504350DE061968B023EDEA353F604AEDD2E
+                    10 : 0x3ABF8B5A7DEDCBBFD98372D34FE7ADBABB47C418C39A99FD6C22767BFDF89B4B
                 </pcr_selection>
             </pcr_selections>
             <!-- Specify multiple <pcr_selections> tags to give reference values for different quoting key issuers -->
@@ -62,8 +62,8 @@
             <pcr_selections>
                 <subject_name> CN=myQuotingKey, OU=myCompany</subject_name>
                 <pcr_selection bank="sha256">
-                    0  : 0x0000000000000000000000000000000000000000000000000000000000000000
-                    7  : 0x0000000000000000000000000000000000000000000000000000000000000000
+                    0  : 0x863F1067733A1264040FB71493BB0EBDCB55B563556B327681EE2B544C9634C8
+                    7  : 0xF77775E7A157F14B1A8A8A9A5A630504350DE061968B023EDEA353F604AEDD2E
                     20 : 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
                 </pcr_selection>
             </pcr_selections>

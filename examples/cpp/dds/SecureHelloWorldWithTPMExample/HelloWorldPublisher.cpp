@@ -69,7 +69,7 @@ bool HelloWorldPublisher::init(bool noatt)
         pqos.properties().properties().emplace_back("dds.sec.auth.builtin.PKI-DH.tpm2.pcr_selection",
                 "0-7,10");
         pqos.properties().properties().emplace_back("dds.sec.auth.builtin.PKI-DH.tpm2.tcti_options",
-                "swtpm:port=2321");
+                "device:/dev/tpmrm0");
 
     /* Note that you can also specify the quoting key via a TPM handle, like so:
      *   pqos.properties().properties().emplace_back("dds.sec.auth.builtin.PKI-DH.tpm2.quoting_key",
